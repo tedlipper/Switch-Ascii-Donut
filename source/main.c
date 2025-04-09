@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
  
     int z[totalChars];
     char b[totalChars];
-
+    char outputBuffer[totalChars + yAxis]; // +yAxis for newlines
     int sA=1024,cA=0,sB=1024,cB=0,f;
     
 //    */
