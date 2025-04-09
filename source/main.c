@@ -18,17 +18,18 @@
 
 int f;
 
-#define R(mul,shift,x,y) \
-  f=x; \
-  x -= mul*y>>shift; \
-  y += mul*f>>shift; \
-  f = 3145728-x*x-y*y>>11; \
-  x = x*f>>10; \
-  y = y*f>>10;
+// Rotation function replacing the R macro
+void rotate(int mul, int shift, int *x, int *y) {
+    f = *x;
+    *x -= (mul * *y) >> shift;
+    *y += (mul * f) >> shift;
+    f = (3145728 - (*x) * (*x) - (*y) * (*y)) >> 11;
+    *x = *x * f >> 10;
+    *y = *y * f >> 10;
+}
 
 void UpdatedDonutDecider(int cA, int sA, int cB, int sB, int z[7200], char b[7200]);
-void donutDecider(float A, float B, float z[7200], char b[7200]);
-//void donutDecider2(int &cA, int &sA, int &cB, int &sB, int z[7200], char b[7200]);
+
 
 //char gradient[19] = {' ', DEL, '.', '-', ':', ';', '!', '+', 's', 'T', 'Y', '$', '%', 'S', '8', 'A', '0', '#', '\0'};
 char gradient[18] = {DEL, '.', '-', ':', ';', '!', '+', 's', 'T', 'Y', '$', '%', 'S', '8', 'A', '0', '#', '\0'};
@@ -48,14 +49,6 @@ const char
 
     float A = 0, B = 0;                 // angles of rotation
 
-
-
-
-
-
-
-
-
 // Main program entrypoint
 int main(int argc, char* argv[])
 {
@@ -72,12 +65,6 @@ int main(int argc, char* argv[])
     // Initialize the default gamepad (which reads handheld mode inputs as well as the first connected controller)
     PadState pad;
     padInitializeDefault(&pad);
-
-
-
-
-
-
 
 ///////////////////////////////////////////music code
     Result rc = romfsInit();
@@ -102,13 +89,7 @@ int main(int argc, char* argv[])
     Mix_Music *audio = Mix_LoadMUS("romfs:/Donut_Theme.mp3");
 ///////////////musiccode
 
-
-
-
-
 //usleep(1500000);
-
-
 
     // Other initialization goes here. As a demonstration, we print hello world.
   //  printf("Hello Emulator\n");
@@ -123,30 +104,11 @@ int main(int argc, char* argv[])
     
 //    */
 
-
-
-
-
-
-
-
-
 Mix_PlayMusic(audio, -1); //Play the audio file
-
-
 
     // Main loop
     while (appletMainLoop())
     {
-
-
-
-
-
-
-
-
-
 
         // Scan the gamepad. This should be done once for each frame
         padUpdate(&pad);
@@ -158,12 +120,7 @@ Mix_PlayMusic(audio, -1); //Play the audio file
         if (kDown & HidNpadButton_Plus)
             break; // break in order to return to hbmenu
 
-
-
-
-
-//*
-
+/*
 
         UpdatedDonutDecider(cA, sA, cB, sB, z, b);
 
@@ -177,23 +134,38 @@ Mix_PlayMusic(audio, -1); //Play the audio file
             }
             printf("\n"); // Append newline after each row
         }
-        R(8, 7, cA, sA);
-        R(7, 8, cB, sB);
+        rotate(8, 7, &cA, &sA);
+        rotate(7, 8, &cB, &sB);
 //*/
 
+
+        // Update the donut and render the frame
+        UpdatedDonutDecider(cA, sA, cB, sB, z, b);
+
+        // Prepare the output buffer
+        int idx = 0;
+        for (int k = 0; k < yAxis; k++) {
+            for (int l = 0; l < xAxis; l++) {
+                outputBuffer[idx++] = b[(l + (k * xAxis))];  // Add character to buffer
+            }
+            outputBuffer[idx++] = '\n';  // Add newline after each row
+        }
+        outputBuffer[idx] = '\0';  // Null-terminate the string
+
+        // Print the entire frame at once
+        printf("\x1b[H");  // Move the cursor to the top left
+        printf("%s", outputBuffer);  // Print the entire buffered output
+
+        // Apply rotation for next frame
+        rotate(8, 7, &cA, &sA);
+        rotate(7, 8, &cB, &sB);
+        usleep(30000);
 
 
 
         // Update the console, sending a new frame to the display
         consoleUpdate(NULL);
     }
-
-
-
-
-
-
-
 
 
     // Free the loaded sound
@@ -210,72 +182,6 @@ Mix_PlayMusic(audio, -1); //Play the audio file
     consoleExit(NULL);
     return 0;
 }
-
-
-
-//Someone else made the donut code in C, I just translated it into c++ and am using it as a screen tester
-void donutDecider(float A, float B, float z[7200], char b[7200])
-{     
-
-    for(float j=0; j < 6.28; j += 0.07) //
-    {
-        for(float i=0; i < 6.28; i += 0.02) 
-        {
-//*
-            float c = sin(i);
-            float d = cos(j);   //cos
-            float e = sin(A);   //sin
-            float f = sin(j);
-            float g = cos(A);
-            float h = d + 2;                            //const decides hole size //default 2
-            float D = 1 / (c * h * e + f * g + 5);     //const decides width //default 1 and 5
-            float l = cos(i);
-            float m = cos(B);
-            float n = sin(B);   //
-            float t = c * h * g - f * e;
-            int x = xLocation + (xScale * D * (l * h * m - t * n));          ////x calc const defines width
-            int y = yLocation + (yScale * D * (l * h * n + t * m));          ////y calc const defines height
-            int o = x + xAxis * y;
-            int N = 11 * ((f * e - c * d * g) * m - c * d * e - f * g - l * d * n);         //8 for default gradient 64 for new one
-            if(yAxis > y && y > 0 && x > 0 && xAxis > x && D > z[o]) 
-            {
-                z[o] = D;
-                b[o] = gradient[N > 0 ? N : 0];
-                //b[o] = ".:,'-^*+?!|=0#X%WM@"[N > 0 ? N : 0];
-                //b[o] = ".,-~:;=!*#$@"[N > 0 ? N : 0];
-                //      123456789012
-            }
-//*/
-            true;
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 void UpdatedDonutDecider(int cA, int sA, int cB, int sB, int z[7200], char b[7200])
@@ -313,8 +219,9 @@ void UpdatedDonutDecider(int cA, int sA, int cB, int sB, int z[7200], char b[720
                 b[o] = gradient[N > 0 ? N : 0];  //,?=m@
 //                b[o] = ".,-~:;=!*#$@"[N > 0 ? N : 0];
             }
-            R(5, 8, ci, si);  // rotate i
+            rotate(5, 8, &ci, &si);  // Rotate i
         }
-    R(9, 7, cj, sj);  // rotate j
+
+        rotate(9, 7, &cj, &sj);  // Rotate j
     }
 }
